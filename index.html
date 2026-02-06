@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Editor HTML Simples</title>
+
+  <meta name="theme-color" content="#1e1e1e" />
+
+  <style>
+    :root {
+      --bg: #1e1e1e;
+      --fg: #e0e0e0;
+      --border: #444;
+      --header: #252526;
+      --accent: #0d8cff;
+      --card: #2d2d2d;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      height: 100vh;
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      background: var(--header);
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+
+    h1 {
+      font-size: 1.1rem;
+      font-weight: 500;
+    }
+
+    .btn {
+      padding: 8px 16px;
+      font-size: 0.95rem;
+      border: 1px solid #555;
+      border-radius: 6px;
+      background: #333;
+      color: white;
+      cursor: pointer;
+    }
+
+    .btn:hover {
+      background: #444;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .btn-primary:hover {
+      background: #0077e6;
+    }
+
+    .main {
+      flex: 1;
+      display: flex;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .editor-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+
+    .tab {
+      padding: 8px 16px;
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      font-size: 0.95rem;
+    }
+
+    .editor-wrapper {
+      position: relative;
+      flex: 1;
+      display: flex;
+      min-height: 0;
+    }
+
+    #code {
+      flex: 1;
+      background: var(--bg);
+      color: #d4d4d4;
+      font-family: Consolas, Monaco, monospace;
+      font-size: 15px;
+      padding: 14px 14px 14px 56px;
+      border: none;
+      outline: none;
+      resize: none;
+      line-height: 1.5;
+      width: 100%;
+    }
+
+    #line-numbers {
+      position: absolute;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      width: 48px;
+      background: #2d2d2d;
+      color: #858585;
+      text-align: right;
+      padding: 14px 8px 14px 0;
+      border-right: 1px solid var(--border);
+      font-family: Consolas, Monaco, monospace;
+      font-size: 13px;
+      line-height: 1.5;
+      overflow: hidden;
+      pointer-events: none;
+      user-select: none;
+      white-space: pre;
+    }
+
+    #preview-container {
+      flex: 0;
+      background: white;
+      overflow: hidden;
+      transition: flex 0.3s ease;
+    }
+
+    #preview {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+
+    @media (max-width: 800px) {
+      .main {
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Editor HTML</h1>
+  <div style="display:flex; gap:10px;">
+    <button class="btn btn-primary" id="runButton">Executar</button>
+    <button class="btn" id="openTab">Abrir no navegador</button>
+  </div>
+</header>
+
+<div class="main">
+  <div class="editor-area">
+    <div class="tab">Seu código (HTML + CSS + JS)</div>
+    <div class="editor-wrapper">
+      <div id="line-numbers"></div>
+      <textarea id="code" spellcheck="false"></textarea>
+    </div>
+  </div>
+
+  <div id="preview-container">
+    <iframe id="preview"></iframe>
+  </div>
+</div>
+
+<script>
+  const codeEditor = document.getElementById('code');
+  const lineNumbers = document.getElementById('line-numbers');
+  const preview = document.getElementById('preview');
+  const previewContainer = document.getElementById('preview-container');
+  const runButton = document.getElementById('runButton');
+  const openTabBtn = document.getElementById('openTab');
+
+  const STORAGE_KEY = 'simple-html-editor-code';
+  let isPreviewOpen = false;
+  let debounceTimer;
+
+  const defaultCode = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Exemplo</title>
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: #0f172a;
+      color: white;
+      font-family: system-ui;
+    }
+    h1 {
+      font-size: 3rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>Olá 👋</h1>
+</body>
+</html>`;
+
+  function updateLineNumbers() {
+    const lines = codeEditor.value.split('\n').length;
+    let nums = '';
+    for (let i = 1; i <= lines; i++) nums += i + '\n';
+    lineNumbers.textContent = nums;
+    lineNumbers.scrollTop = codeEditor.scrollTop;
+  }
+
+  function updatePreview() {
+    preview.srcdoc = codeEditor.value;
+    updateLineNumbers();
+    localStorage.setItem(STORAGE_KEY, codeEditor.value);
+  }
+
+  runButton.onclick = () => {
+    isPreviewOpen = !isPreviewOpen;
+    previewContainer.style.flex = isPreviewOpen ? '1' : '0';
+    runButton.textContent = isPreviewOpen ? 'Fechar' : 'Executar';
+    if (isPreviewOpen) updatePreview();
+  };
+
+  openTabBtn.onclick = () => {
+    const blob = new Blob([codeEditor.value], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+  };
+
+  codeEditor.addEventListener('input', () => {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(updatePreview, 300);
+  });
+
+  codeEditor.addEventListener('scroll', () => {
+    lineNumbers.scrollTop = codeEditor.scrollTop;
+  });
+
+  codeEditor.addEventListener('keydown', e => {
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      const start = codeEditor.selectionStart;
+      const end = codeEditor.selectionEnd;
+      codeEditor.value =
+        codeEditor.value.slice(0, start) +
+        '  ' +
+        codeEditor.value.slice(end);
+      codeEditor.selectionStart = codeEditor.selectionEnd = start + 2;
+      updateLineNumbers();
+    }
+  });
+
+  const saved = localStorage.getItem(STORAGE_KEY);
+  codeEditor.value = saved || defaultCode;
+  updateLineNumbers();
+</script>
+
+</body>
+</html>
