@@ -272,6 +272,14 @@
   const saved = localStorage.getItem(STORAGE_KEY);
   codeEditor.value = saved || defaultCode;
   updateLineNumbers();
+
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('service-worker.js')
+        .then(reg => console.log('✅ Service Worker registrado', reg))
+        .catch(err => console.error('❌ Erro ao registrar o SW:', err));
+    });
+  }
 </script>
 
 </body>
